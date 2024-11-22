@@ -1,3 +1,11 @@
+"""
+This file defines the unified action vector.
+Here the state of gripper is represented as a 5D vector,
+we may use this property to control a hand instead of a gripper
+
+Dknt
+"""
+
 STATE_VEC_IDX_MAPPING = {
     # [0, 10): right arm joint positions
     **{

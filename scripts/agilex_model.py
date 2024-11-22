@@ -10,7 +10,7 @@ from models.multimodal_encoder.siglip_encoder import SiglipVisionTower
 from models.multimodal_encoder.t5_encoder import T5Embedder
 from models.rdt_runner import RDTRunner
 
-
+# TODO: Check the indices.
 # The indices that the raw vector should be mapped to in the unified action vector
 AGILEX_STATE_INDICES = [
     STATE_VEC_IDX_MAPPING[f"left_arm_joint_{i}_pos"] for i in range(6)

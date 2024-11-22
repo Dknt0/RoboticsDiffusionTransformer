@@ -18,6 +18,7 @@ dataset:
   # The producer will replace the data which has been 
   # read by the consumer with new data
 
+  # This will only be used during pre-training
   # The path to the buffer (at least 400GB)
   buf_path: /path/to/buffer
   # The number of chunks in the buffer

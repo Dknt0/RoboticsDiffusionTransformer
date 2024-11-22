@@ -1,6 +1,8 @@
 """
 This file will compute the min, max, mean, and standard deviation of each datasets 
 in `pretrain_datasets.json` or `pretrain_datasets.json`.
+
+The results will be saved in `configs/dataset_stat.json`.
 """
 
 import json

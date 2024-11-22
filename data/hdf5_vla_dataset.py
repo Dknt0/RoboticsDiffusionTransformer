@@ -1,3 +1,9 @@
+"""
+Fine-tuning dataloader. Load dataset from HDF5 file.
+
+Dknt
+"""
+
 import os
 import fnmatch
 import json
@@ -7,6 +13,7 @@ import yaml
 import cv2
 import numpy as np
 
+# Import unified action vector
 from configs.state_vec import STATE_VEC_IDX_MAPPING
 
 
@@ -18,10 +25,13 @@ class HDF5VLADataset:
     def __init__(self) -> None:
         # [Modify] The path to the HDF5 dataset directory
         # Each HDF5 file contains one episode
-        HDF5_DIR = "data/datasets/agilex/rdt_data/"
-        self.DATASET_NAME = "agilex"
-        
-        self.file_paths = []
+        # TODO
+        # HDF5_DIR = "data/datasets/agilex/rdt_data/"
+        # self.DATASET_NAME = "agilex"
+        HDF5_DIR = "datasets/test_set/my_set/"
+        self.DATASET_NAME = "test_set"
+
+        self.file_paths = []  # .hdf5 files, each file is an episode
         for root, _, files in os.walk(HDF5_DIR):
             for filename in fnmatch.filter(files, '*.hdf5'):
                 file_path = os.path.join(root, filename)
@@ -144,9 +154,11 @@ class HDF5VLADataset:
             instruction = instruction_dict[instruction_type]
             if isinstance(instruction, list):
                 instruction = np.random.choice(instruction)
+            # TODO
             # You can also use precomputed language embeddings (recommended)
             # instruction = "path/to/lang_embed.pt"
-            
+            instruction = "out/lang_embed.pt"
+
             # Assemble the meta
             meta = {
                 "dataset_name": self.DATASET_NAME,
@@ -155,6 +167,7 @@ class HDF5VLADataset:
                 "instruction": instruction
             }
             
+            # TODO  Why the scale values are the following?
             # Rescale gripper to [0, 1]
             qpos = qpos / np.array(
                [[1, 1, 1, 1, 1, 1, 4.7908, 1, 1, 1, 1, 1, 1, 4.7888]] 
@@ -178,6 +191,7 @@ class HDF5VLADataset:
             
             # Fill the state/action into the unified vector
             def fill_in_state(values):
+                # TODO
                 # Target indices corresponding to your state space
                 # In this example: 6 joints + 1 gripper for each arm
                 UNI_STATE_INDICES = [

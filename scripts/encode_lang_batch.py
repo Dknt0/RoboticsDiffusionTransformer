@@ -1,3 +1,14 @@
+"""
+This script is used to pre-compute the language embeddings for all instructions 
+in expanded_instruction_gpt-4-turbo.json of a dataset.
+
+Run in the root directory of this project:
+
+python -m scripts.encode_lang_batch
+
+Dknt
+"""
+
 import os
 import json
 
@@ -12,8 +23,8 @@ GPU = 0
 MODEL_PATH = "google/t5-v1_1-xxl"
 CONFIG_PATH = "configs/base.yaml"
 # Modify the TARGET_DIR to your dataset path
-TARGET_DIR = "data/datasets/agilex/tfrecords/"
-
+# TARGET_DIR = "data/datasets/agilex/tfrecords/"
+TARGET_DIR = "datasets/test_set/"
 
 def main():
     with open(CONFIG_PATH, "r") as fp:
@@ -37,6 +48,9 @@ def main():
                 if os.path.isdir(task_path):
                     task_paths.append(task_path)
 
+
+    print(task_paths)
+
     # For each task, encode the instructions
     for task_path in tqdm(task_paths):
         # Load the instructions corresponding to the task from the directory
@@ -45,6 +59,9 @@ def main():
         instructions = [instruction_dict['instruction']] + instruction_dict['simplified_instruction'] + \
             instruction_dict['expanded_instruction']
     
+        print(task_path)
+        print(instructions)
+
         # Encode the instructions
         tokenized_res = tokenizer(
             instructions, return_tensors="pt",
@@ -62,10 +79,12 @@ def main():
         
         attn_mask = attn_mask.cpu().bool()
 
+        # Save each instruction in a single .pt file
         # Save the embeddings for training use
         for i in range(len(instructions)):
             text_embed = text_embeds[i][attn_mask[i]]
             save_path = os.path.join(task_path, f"lang_embed_{i}.pt")
+            print(f"Saved to {save_path}")
             torch.save(text_embed, save_path)
 
 if __name__ == "__main__":

@@ -1,3 +1,14 @@
+"""
+This script is used to pre-compute the language embeddings for a single instruction,
+since the language encoder model is too large for a single 4080...
+
+Run in the root directory after creating the "outs" directory:
+
+python -m scripts.encode_lang
+
+Dknt
+"""
+
 import os
 
 import torch
@@ -12,18 +23,23 @@ CONFIG_PATH = "configs/base.yaml"
 SAVE_DIR = "outs/"
 
 # Modify this to your task name and instruction
-TASK_NAME = "handover_pan"
-INSTRUCTION = "Pick up the black marker on the right and put it into the packaging box on the left."
+# TASK_NAME = "handover_pan"
+# INSTRUCTION = "Pick up the black marker on the right and put it into the packaging box on the left."
+TASK_NAME = "earn_money"
+INSTRUCTION = "Earn more money after earning more money to earn more money."
 
 # Note: if your GPU VRAM is less than 24GB, 
 # it is recommanded to enable offloading by specifying an offload directory.
-OFFLOAD_DIR = None  # Specify your offload directory here, ensuring the directory exists.
+# OFFLOAD_DIR = None  # Specify your offload directory here, ensuring the directory exists.
+OFFLOAD_DIR = "offload"
 
 def main():
     with open(CONFIG_PATH, "r") as fp:
         config = yaml.safe_load(fp)
     
     device = torch.device(f"cuda:{GPU}")
+
+    # Load the encoder model
     text_embedder = T5Embedder(
         from_pretrained=MODEL_PATH, 
         model_max_length=config["dataset"]["tokenizer_max_length"], 

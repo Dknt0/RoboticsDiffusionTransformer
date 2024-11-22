@@ -1,3 +1,7 @@
+#!/home/dknt/Software/miniconda3/envs/rdt/bin/python
+# -- coding: UTF-8
+# Wow! He has the same folder name like me!
+
 #!/home/lin/software/miniconda3/envs/aloha/bin/python
 # -- coding: UTF-8
 """
@@ -220,15 +224,17 @@ def model_inference(args, config, ros_operator):
     lang_dict = torch.load(args.lang_embeddings_path)
     print(f"Running with instruction: \"{lang_dict['instruction']}\" from \"{lang_dict['name']}\"")
     lang_embeddings = lang_dict["embeddings"]
-    
+
     max_publish_step = config['episode_len']
     chunk_size = config['chunk_size']
 
+    # TODO: This should be modified according to our robot setting.
     # Initialize position of the puppet arm
     left0 = [-0.00133514404296875, 0.00209808349609375, 0.01583099365234375, -0.032616615295410156, -0.00286102294921875, 0.00095367431640625, 3.557830810546875]
     right0 = [-0.00133514404296875, 0.00438690185546875, 0.034523963928222656, -0.053597450256347656, -0.00476837158203125, -0.00209808349609375, 3.557830810546875]
     left1 = [-0.00133514404296875, 0.00209808349609375, 0.01583099365234375, -0.032616615295410156, -0.00286102294921875, 0.00095367431640625, -0.3393220901489258]
     right1 = [-0.00133514404296875, 0.00247955322265625, 0.01583099365234375, -0.032616615295410156, -0.00286102294921875, 0.00095367431640625, -0.3397035598754883]
+    # This is to initialize the robot arm
     ros_operator.puppet_arm_publish_continuous(left0, right0)
     input("Press enter to continue")
     ros_operator.puppet_arm_publish_continuous(left1, right1)
@@ -287,9 +293,12 @@ def model_inference(args, config, ros_operator):
 # ROS operator class
 class RosOperator:
     def __init__(self, args):
+        """
+        Define deque and publisher
+        """
         self.robot_base_deque = None
         self.puppet_arm_right_deque = None
-        self.puppet_arm_left_deque = None
+        self.puppet_arm_left_deque = None  # Robot joint state
         self.img_front_deque = None
         self.img_right_deque = None
         self.img_left_deque = None
@@ -307,6 +316,9 @@ class RosOperator:
         self.init_ros()
 
     def init(self):
+        """
+        Initialize deque and bridge
+        """
         self.bridge = CvBridge()
         self.img_left_deque = deque()
         self.img_right_deque = deque()
@@ -321,9 +333,13 @@ class RosOperator:
         self.puppet_arm_publish_lock.acquire()
 
     def puppet_arm_publish(self, left, right):
+        """
+        Publish the left and right puppet arms joint state
+        """
         joint_state_msg = JointState()
         joint_state_msg.header = Header()
         joint_state_msg.header.stamp = rospy.Time.now()  # Set timestep
+        # The joint6 may be end effector
         joint_state_msg.name = ['joint0', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']  # 设置关节名称
         joint_state_msg.position = left
         self.puppet_arm_left_publisher.publish(joint_state_msg)
@@ -331,6 +347,9 @@ class RosOperator:
         self.puppet_arm_right_publisher.publish(joint_state_msg)
 
     def robot_base_publish(self, vel):
+        """
+        Publish the robot base velocity. This will not be used in our robot setting.
+        """
         vel_msg = Twist()
         vel_msg.linear.x = vel[0]
         vel_msg.linear.y = 0
@@ -341,9 +360,15 @@ class RosOperator:
         self.robot_base_publisher.publish(vel_msg)
 
     def puppet_arm_publish_continuous(self, left, right):
+        """
+        Thread function.
+        Publish the left and right puppet arms joint state continuously.
+        """
         rate = rospy.Rate(self.args.publish_rate)
         left_arm = None
         right_arm = None
+
+        # Get the last joint state
         while True and not rospy.is_shutdown():
             if len(self.puppet_arm_left_deque) != 0:
                 left_arm = list(self.puppet_arm_left_deque[-1].position)
@@ -354,16 +379,23 @@ class RosOperator:
                 continue
             else:
                 break
+
+        # Direction of the action
         left_symbol = [1 if left[i] - left_arm[i] > 0 else -1 for i in range(len(left))]
         right_symbol = [1 if right[i] - right_arm[i] > 0 else -1 for i in range(len(right))]
         flag = True
         step = 0
+
+        # Loop
         while flag and not rospy.is_shutdown():
+            # Check if should stop. If the lock is available, it means the thread should stop.
             if self.puppet_arm_publish_lock.acquire(False):
                 return
             left_diff = [abs(left[i] - left_arm[i]) for i in range(len(left))]
             right_diff = [abs(right[i] - right_arm[i]) for i in range(len(right))]
             flag = False
+
+            # Bound the action
             for i in range(len(left)):
                 if left_diff[i] < self.args.arm_steps_length[i]:
                     left_arm[i] = left[i]
@@ -376,6 +408,8 @@ class RosOperator:
                 else:
                     right_arm[i] += right_symbol[i] * self.args.arm_steps_length[i]
                     flag = True
+
+            # Publish the joint state
             joint_state_msg = JointState()
             joint_state_msg.header = Header()
             joint_state_msg.header.stamp = rospy.Time.now()  # Set the timestep
@@ -389,6 +423,9 @@ class RosOperator:
             rate.sleep()
 
     def puppet_arm_publish_linear(self, left, right):
+        """
+        Publish the left and right puppet arms joint state linearly. Not used.
+        """
         num_step = 100
         rate = rospy.Rate(200)
 
@@ -425,6 +462,10 @@ class RosOperator:
             rate.sleep()
 
     def puppet_arm_publish_continuous_thread(self, left, right):
+        """
+        Create a thread to publish joint state.
+        """
+        # Clear the previous thread
         if self.puppet_arm_publish_thread is not None:
             self.puppet_arm_publish_lock.release()
             self.puppet_arm_publish_thread.join()
